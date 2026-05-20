@@ -1,0 +1,23 @@
+{
+  "name": "streamdeck-ai-usage",
+  "version": "0.1.0",
+  "description": "Stream Deck plugin: Claude & Codex usage limits from local files",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "dev": "npm run build && streamdeck link com.kupciu.ai-usage.sdPlugin",
+    "pack": "streamdeck pack com.kupciu.ai-usage.sdPlugin"
+  },
+  "keywords": [],
+  "author": "kupciu",
+  "license": "MIT",
+  "devDependencies": {
+    "@elgato/streamdeck": "^2.1.0",
+    "@types/node": "^25.9.1",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.0"
+  }
+}

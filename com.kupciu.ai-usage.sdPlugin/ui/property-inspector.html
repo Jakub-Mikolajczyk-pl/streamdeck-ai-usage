@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Usage Settings</title>
+  <style>
+    :root {
+      --bg: #1e1e1e;
+      --surface: #2d2d2d;
+      --border: #444;
+      --text: #e0e0e0;
+      --muted: #888;
+      --accent: #4ade80;
+      --font: system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      padding: 12px;
+    }
+    .field { margin-bottom: 14px; }
+    label { display: block; color: var(--muted); margin-bottom: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+    select, input[type="number"] {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 6px 8px;
+      font-size: 13px;
+    }
+    .hint { color: var(--muted); font-size: 11px; margin-top: 4px; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+    .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="field">
+    <label>Display window</label>
+    <select id="displayWindow">
+      <option value="session">Session (5h)</option>
+      <option value="weekly">Weekly (7d)</option>
+    </select>
+    <p class="hint">Which limit window to show on the key face.</p>
+  </div>
+
+  <div class="field">
+    <label>Refresh interval (seconds)</label>
+    <input type="number" id="refreshInterval" min="15" max="3600" step="15" value="60" />
+    <p class="hint">How often to re-scan local files.</p>
+  </div>
+
+  <hr />
+  <p class="section-title">Claude limits (Pro plan defaults)</p>
+
+  <div class="field">
+    <label>Session turn limit (5h)</label>
+    <input type="number" id="claudeTurnLimit" min="1" max="500" value="45" />
+    <p class="hint">Community estimate: Pro ≈ 45, Max 5× ≈ 225, Max 20× ≈ 900</p>
+  </div>
+
+  <div class="field">
+    <label>Weekly turn limit (7d)</label>
+    <input type="number" id="claudeWeeklyLimit" min="1" max="5000" value="200" />
+    <p class="hint">Approximate — Anthropic doesn't publish exact numbers.</p>
+  </div>
+
+  <script>
+    const sdpi = (() => {
+      let _settings = {};
+      const fields = ['displayWindow','refreshInterval','claudeTurnLimit','claudeWeeklyLimit'];
+
+      function load(settings) {
+        _settings = settings || {};
+        fields.forEach(id => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          if (_settings[id] !== undefined) el.value = _settings[id];
+        });
+      }
+
+      function save() {
+        fields.forEach(id => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          const val = el.type === 'number' ? Number(el.value) : el.value;
+          _settings[id] = val;
+        });
+        window.opener?.postMessage({
+          event: 'setSettings',
+          payload: _settings,
+        }, '*');
+        // Stream Deck SDK message channel
+        if (typeof connectElgatoStreamDeckSocket !== 'undefined') {
+          // handled via onDidReceiveSettings loop
+        }
+      }
+
+      fields.forEach(id => {
+        const el = document.getElementById(id);
+        el?.addEventListener('change', save);
+      });
+
+      return { load };
+    })();
+
+    // Stream Deck Property Inspector protocol
+    function connectElgatoStreamDeckSocket(port, uuid, registerEvent, info, actionInfo) {
+      const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ event: registerEvent, uuid }));
+        const parsed = JSON.parse(actionInfo);
+        sdpi.load(parsed?.payload?.settings ?? {});
+      };
+
+      ws.onmessage = (msg) => {
+        const data = JSON.parse(msg.data);
+        if (data.event === 'didReceiveSettings') {
+          sdpi.load(data.payload?.settings ?? {});
+        }
+      };
+
+      // Patch save to use WebSocket
+      const fields = ['displayWindow','refreshInterval','claudeTurnLimit','claudeWeeklyLimit'];
+      const settings = {};
+      fields.forEach(id => {
+        const el = document.getElementById(id);
+        el?.addEventListener('change', () => {
+          fields.forEach(fid => {
+            const fel = document.getElementById(fid);
+            if (!fel) return;
+            settings[fid] = fel.type === 'number' ? Number(fel.value) : fel.value;
+          });
+          ws.send(JSON.stringify({
+            event: 'setSettings',
+            context: uuid,
+            payload: settings,
+          }));
+        });
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{
+  "Author": "kupciu",
+  "Description": "Show Claude Code and Codex CLI usage limits on Stream Deck keys. Reads local JSONL files — no API keys, no network calls.",
+  "Name": "AI Usage Limits",
+  "Version": "0.1.0",
+  "SDKVersion": 2,
+  "Software": {
+    "MinimumVersion": "6.5"
+  },
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Category": "AI Usage",
+  "CategoryIcon": "imgs/category",
+  "Icon": "imgs/plugin-icon",
+  "CodePath": "bin/plugin.js",
+  "Actions": [
+    {
+      "Name": "Claude Usage",
+      "UUID": "com.kupciu.ai-usage.claude",
+      "Icon": "imgs/claude-action",
+      "Tooltip": "Shows Claude Code token usage for the current 5h or 7d window. Data from local JSONL files.",
+      "Controllers": ["Keypad"],
+      "PropertyInspectorPath": "ui/property-inspector.html",
+      "States": [
+        {
+          "Image": "imgs/claude-action"
+        }
+      ]
+    },
+    {
+      "Name": "Codex Usage",
+      "UUID": "com.kupciu.ai-usage.codex",
+      "Icon": "imgs/codex-action",
+      "Tooltip": "Shows Codex CLI usage for the current 5h or 7d window. Data from local session files.",
+      "Controllers": ["Keypad"],
+      "PropertyInspectorPath": "ui/property-inspector.html",
+      "States": [
+        {
+          "Image": "imgs/codex-action"
+        }
+      ]
+    }
+  ]
+}

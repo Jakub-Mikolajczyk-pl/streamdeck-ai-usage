@@ -19,6 +19,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const nmSrc = join(__dirname, "node_modules");
 const pluginDir = join(__dirname, "com.kupciu.ai-usage.sdPlugin");
 const nmDst = join(pluginDir, "node_modules");
+const binDir = join(pluginDir, "bin");
+
+// 0. Clean bin/ — old tsc artifacts would otherwise inflate the .streamDeckPlugin
+rmSync(binDir, { recursive: true, force: true });
+console.log("✔ Cleaned bin/");
 
 // 1. Bundle with esbuild
 await esbuild.build({

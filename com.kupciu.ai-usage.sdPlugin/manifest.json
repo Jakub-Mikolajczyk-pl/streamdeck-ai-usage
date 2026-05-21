@@ -1,5 +1,6 @@
 {
   "Author": "kupciu",
+  "URL": "https://github.com/Jakub-Mikolajczyk-pl/streamdeck-ai-usage",
   "Description": "Show Claude Code and Codex CLI usage limits on Stream Deck keys. Reads local JSONL files — no API keys, no network calls.",
   "Name": "AI Usage Limits",
   "Version": "0.1.0",

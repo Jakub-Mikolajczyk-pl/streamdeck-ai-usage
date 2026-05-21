@@ -4,9 +4,9 @@
   "description": "Stream Deck plugin: Claude & Codex usage limits from local files",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "node build.mjs",
     "watch": "tsc --watch",
-    "dev": "npm run build && streamdeck link com.kupciu.ai-usage.sdPlugin",
+    "dev": "npm run build && streamdeck restart com.kupciu.ai-usage",
     "pack": "streamdeck pack com.kupciu.ai-usage.sdPlugin"
   },
   "keywords": [],
@@ -15,6 +15,7 @@
   "devDependencies": {
     "@elgato/streamdeck": "^2.1.0",
     "@types/node": "^25.9.1",
+    "esbuild": "^0.28.0",
     "typescript": "^6.0.3"
   },
   "dependencies": {

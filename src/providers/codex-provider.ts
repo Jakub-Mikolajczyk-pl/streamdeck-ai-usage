@@ -11,11 +11,13 @@
  * This means: no token math needed for Codex — just read the latest value.
  */
 
-import { readdir, stat } from "fs/promises";
 import { homedir } from "os";
 import { join } from "path";
 import { streamJsonl } from "../core/jsonl-reader.js";
+import { findJsonlFiles, filterRecentFiles } from "../core/find-jsonl.js";
 import type { UsageSnapshot, ActionSettings } from "./types.js";
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface CodexRateLimits {
   limit_id?: string;
@@ -44,21 +46,6 @@ interface CodexTokenCountLine {
 function codexSessionsDir(): string {
   const codexHome = process.env["CODEX_HOME"] ?? join(homedir(), ".codex");
   return join(codexHome, "sessions");
-}
-
-async function findJsonlFiles(dir: string): Promise<string[]> {
-  try {
-    const entries = await readdir(dir, { withFileTypes: true, recursive: true });
-    return entries
-      .filter((e) => e.isFile() && e.name.endsWith(".jsonl"))
-      .map((e) => join(e.parentPath ?? (e as { path?: string }).path ?? dir, e.name));
-  } catch {
-    return [];
-  }
-}
-
-async function findCodexFiles(): Promise<string[]> {
-  return findJsonlFiles(codexSessionsDir());
 }
 
 interface RateLimitRecord {
@@ -91,24 +78,10 @@ export async function getCodexUsage(
   _settings: ActionSettings
 ): Promise<UsageSnapshot> {
   const fetchedAt = Date.now();
-  const sevenDaysAgo = fetchedAt - 7 * 24 * 60 * 60 * 1000;
 
   try {
-    const files = await findCodexFiles();
-
-    // Filter to recently modified files only
-    const recentFiles = await Promise.all(
-      files.map(async (f) => {
-        try {
-          const s = await stat(f);
-          return s.mtimeMs >= sevenDaysAgo ? f : null;
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    const filesToRead = recentFiles.filter((f): f is string => f !== null);
+    const files = await findJsonlFiles(codexSessionsDir());
+    const filesToRead = await filterRecentFiles(files, SEVEN_DAYS_MS);
 
     // Extract last rate_limit record from each file in parallel
     const records = await Promise.all(filesToRead.map(extractLastRateLimits));
@@ -129,10 +102,19 @@ export async function getCodexUsage(
     }
 
     const rl = latest.rateLimits;
-    const sessionPercent = Math.min(rl.primary?.used_percent ?? 0, 1);
-    const weeklyPercent = Math.min(rl.secondary?.used_percent ?? 0, 1);
+    const nowSec = Math.floor(Date.now() / 1000);
     const sessionResetsAt = rl.primary?.resets_at ?? 0;
     const weeklyResetsAt = rl.secondary?.resets_at ?? 0;
+
+    // Codex's used_percent is on a 0–100 scale (NOT 0–1). Convert to fraction.
+    // Also: if reset time has already passed, window has rolled over since this
+    // data was captured — effective usage = 0%.
+    const toFraction = (raw: number): number =>
+      Math.max(0, Math.min(raw / 100, 1));
+    const sessionPercent =
+      sessionResetsAt > nowSec ? toFraction(rl.primary?.used_percent ?? 0) : 0;
+    const weeklyPercent =
+      weeklyResetsAt > nowSec ? toFraction(rl.secondary?.used_percent ?? 0) : 0;
 
     return {
       provider: "Codex",

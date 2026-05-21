@@ -9,12 +9,14 @@
  * then extract timestamp + output_tokens.
  */
 
-import { readdir, stat } from "fs/promises";
 import { homedir } from "os";
 import { join } from "path";
 import { streamJsonl } from "../core/jsonl-reader.js";
 import { computeWindows, type TurnEntry } from "../core/session-blocks.js";
+import { findJsonlFiles, filterRecentFiles } from "../core/find-jsonl.js";
 import type { UsageSnapshot, ActionSettings } from "./types.js";
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface ClaudeAssistantLine {
   type: string;
@@ -22,8 +24,10 @@ interface ClaudeAssistantLine {
   message?: {
     model?: string;
     usage?: {
-      output_tokens?: number;
       input_tokens?: number;
+      output_tokens?: number;
+      cache_creation_input_tokens?: number;
+      cache_read_input_tokens?: number;
     };
   };
 }
@@ -33,24 +37,7 @@ function claudeProjectsDir(): string {
   return join(homedir(), ".claude", "projects");
 }
 
-/** Recursively find all *.jsonl files under a directory */
-async function findJsonlFiles(dir: string): Promise<string[]> {
-  try {
-    const entries = await readdir(dir, { withFileTypes: true, recursive: true });
-    return entries
-      .filter((e) => e.isFile() && e.name.endsWith(".jsonl"))
-      .map((e) => join(e.parentPath ?? (e as { path?: string }).path ?? dir, e.name));
-  } catch {
-    return [];
-  }
-}
-
-/** Find all session JSONL files in the Claude projects directory */
-async function findSessionFiles(): Promise<string[]> {
-  return findJsonlFiles(claudeProjectsDir());
-}
-
-/** Extract all assistant turns from a single JSONL file */
+/** Extract all assistant turns from a single JSONL file. Sums billable tokens. */
 async function extractTurns(filePath: string): Promise<TurnEntry[]> {
   const turns: TurnEntry[] = [];
   await streamJsonl<ClaudeAssistantLine>(filePath, (obj) => {
@@ -58,8 +45,13 @@ async function extractTurns(filePath: string): Promise<TurnEntry[]> {
     if (!obj.timestamp || !obj.message?.usage) return;
     const ts = new Date(obj.timestamp).getTime();
     if (isNaN(ts)) return;
-    const outputTokens = obj.message.usage.output_tokens ?? 0;
-    turns.push({ timestamp: ts, outputTokens });
+    const u = obj.message.usage;
+    // Billable = input + output + cache_creation. Skip cache_read (~10× cheaper).
+    const billableTokens =
+      (u.input_tokens ?? 0) +
+      (u.output_tokens ?? 0) +
+      (u.cache_creation_input_tokens ?? 0);
+    turns.push({ timestamp: ts, billableTokens });
   });
   return turns;
 }
@@ -72,24 +64,10 @@ export async function getClaudeUsage(
   settings: ActionSettings
 ): Promise<UsageSnapshot> {
   const fetchedAt = Date.now();
-  const sevenDaysAgo = fetchedAt - 7 * 24 * 60 * 60 * 1000;
 
   try {
-    const files = await findSessionFiles();
-
-    // Filter to recently modified files only (7d) for performance
-    const recentFiles = await Promise.all(
-      files.map(async (f) => {
-        try {
-          const s = await stat(f);
-          return s.mtimeMs >= sevenDaysAgo ? f : null;
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    const filesToRead = recentFiles.filter((f): f is string => f !== null);
+    const files = await findJsonlFiles(claudeProjectsDir());
+    const filesToRead = await filterRecentFiles(files, SEVEN_DAYS_MS);
 
     // Extract turns from all recent files in parallel
     const turnArrays = await Promise.all(filesToRead.map(extractTurns));
@@ -98,11 +76,11 @@ export async function getClaudeUsage(
     const { session, weekly } = computeWindows(allTurns);
 
     const sessionPercent = Math.min(
-      session.turnCount / settings.claudeTurnLimit,
+      session.tokens / settings.claudeSessionTokenLimit,
       1
     );
     const weeklyPercent = Math.min(
-      weekly.turnCount / settings.claudeWeeklyLimit,
+      weekly.tokens / settings.claudeWeeklyTokenLimit,
       1
     );
 

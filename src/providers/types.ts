@@ -30,17 +30,22 @@ export interface ActionSettings {
   [key: string]: string | number | boolean | null | undefined;
   /** Which window to display on main key face: "session" | "weekly" */
   displayWindow: "session" | "weekly";
-  /** For Claude: configurable limit (turns per 5h). Default = 45 for Pro */
-  claudeTurnLimit: number;
-  /** For Claude: configurable weekly turn limit. Default = 200 for Pro */
-  claudeWeeklyLimit: number;
+  /** Claude token budget per 5h block (billable: input+output+cache_creation).
+   *  Default 220k ≈ Claude Pro community estimate. Tweak in PI to match your IDE %. */
+  claudeSessionTokenLimit: number;
+  /** Claude token budget per 7d window. Default 1.5M ≈ Pro estimate. */
+  claudeWeeklyTokenLimit: number;
   /** Refresh interval in seconds (default 60) */
   refreshInterval: number;
 }
 
+// Pro plan defaults — measured empirically against IDE percentages:
+//   If you used 1.1M tokens and IDE shows 25%, the real budget is ~4.5M / 5h.
+//   Weekly works out to ~28M / 7d.
+//   These are billable tokens = input + output + cache_creation (cache_read excluded).
 export const DEFAULT_SETTINGS: ActionSettings = {
   displayWindow: "session",
-  claudeTurnLimit: 45,
-  claudeWeeklyLimit: 200,
+  claudeSessionTokenLimit: 4_500_000,
+  claudeWeeklyTokenLimit: 28_000_000,
   refreshInterval: 60,
 };

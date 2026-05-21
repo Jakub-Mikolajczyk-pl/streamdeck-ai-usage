@@ -54,24 +54,24 @@
   </div>
 
   <hr />
-  <p class="section-title">Claude limits (Pro plan defaults)</p>
+  <p class="section-title">Claude token limits (Pro plan defaults)</p>
 
   <div class="field">
-    <label>Session turn limit (5h)</label>
-    <input type="number" id="claudeTurnLimit" min="1" max="500" value="45" />
-    <p class="hint">Community estimate: Pro ≈ 45, Max 5× ≈ 225, Max 20× ≈ 900</p>
+    <label>Session token budget (5h)</label>
+    <input type="number" id="claudeSessionTokenLimit" min="100000" max="200000000" step="100000" value="4500000" />
+    <p class="hint">Default 4.5M ≈ Pro (measured against IDE %). Counts input+output+cache_creation; cache_read excluded.</p>
   </div>
 
   <div class="field">
-    <label>Weekly turn limit (7d)</label>
-    <input type="number" id="claudeWeeklyLimit" min="1" max="5000" value="200" />
-    <p class="hint">Approximate — Anthropic doesn't publish exact numbers.</p>
+    <label>Weekly token budget (7d)</label>
+    <input type="number" id="claudeWeeklyTokenLimit" min="1000000" max="1000000000" step="1000000" value="28000000" />
+    <p class="hint">Default 28M ≈ Pro. Tweak to match IDE %: lower → higher %, raise → lower %.</p>
   </div>
 
   <script>
     const sdpi = (() => {
       let _settings = {};
-      const fields = ['displayWindow','refreshInterval','claudeTurnLimit','claudeWeeklyLimit'];
+      const fields = ['displayWindow','refreshInterval','claudeSessionTokenLimit','claudeWeeklyTokenLimit'];
 
       function load(settings) {
         _settings = settings || {};
@@ -125,7 +125,7 @@
       };
 
       // Patch save to use WebSocket
-      const fields = ['displayWindow','refreshInterval','claudeTurnLimit','claudeWeeklyLimit'];
+      const fields = ['displayWindow','refreshInterval','claudeSessionTokenLimit','claudeWeeklyTokenLimit'];
       const settings = {};
       fields.forEach(id => {
         const el = document.getElementById(id);

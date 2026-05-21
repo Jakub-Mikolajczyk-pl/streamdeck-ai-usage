@@ -7,13 +7,19 @@
  *   Below %:   thin progress bar (full width, 8px tall)
  *   Bottom:    reset countdown ("5h" or "↺ 2h14m")
  *
- * Colours shift based on usage:
- *   0–60%:  green  (#4ade80)
- *   60–85%: amber  (#fbbf24)
- *   85%+:   red    (#f87171)
+ * Colour scheme:
+ *  - Each provider has a brand colour for the label/accent:
+ *      Claude → purple (#a78bfa)
+ *      Codex  → blue   (#60a5fa)
+ *  - Percentage + bar fill colour shifts based on usage level:
+ *      0–60%:  green  (#4ade80)
+ *      60–85%: amber  (#fbbf24)
+ *      85%+:   red    (#f87171)
  */
 
-import { createCanvas } from "@napi-rs/canvas";
+// @napi-rs/canvas is CJS — use default import + destructure for Node 20 compatibility
+import canvasPkg from "@napi-rs/canvas";
+const { createCanvas } = canvasPkg as unknown as { createCanvas: typeof import("@napi-rs/canvas").createCanvas };
 import type { UsageSnapshot, UsageWindow } from "../providers/types.js";
 
 const SIZE = 144;
@@ -22,6 +28,10 @@ function usageColor(pct: number): string {
   if (pct >= 0.85) return "#f87171";
   if (pct >= 0.6) return "#fbbf24";
   return "#4ade80";
+}
+
+function brandColor(provider: UsageSnapshot["provider"]): string {
+  return provider === "Codex" ? "#60a5fa" : "#a78bfa";
 }
 
 function formatCountdown(resetsAtSec: number): string {
@@ -55,7 +65,12 @@ export function renderButton(
 
   const window: UsageWindow = snapshot[displayWindow];
   const pct = window.usedPercent;
-  const color = snapshot.error ? "#6b7280" : usageColor(pct);
+  // Codex → always brand blue. Claude → green/amber/red gradient based on usage.
+  const color = snapshot.error
+    ? "#6b7280"
+    : snapshot.provider === "Codex"
+      ? brandColor("Codex")
+      : usageColor(pct);
 
   // Background
   ctx.fillStyle = "#111111";
@@ -80,7 +95,7 @@ export function renderButton(
     return canvas.toBuffer("image/png").toString("base64");
   }
 
-  // Provider label (top)
+  // Provider label (top) — muted gray
   ctx.fillStyle = "#9ca3af";
   ctx.font = "bold 13px sans-serif";
   ctx.textAlign = "center";

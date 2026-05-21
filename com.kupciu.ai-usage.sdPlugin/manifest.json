@@ -7,6 +7,9 @@
   "Software": {
     "MinimumVersion": "6.5"
   },
+  "Nodejs": {
+    "Version": "20"
+  },
   "OS": [
     {
       "Platform": "windows",

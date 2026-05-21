@@ -103,8 +103,12 @@ function mergeSettings(raw: Partial<ActionSettings> = {}): ActionSettings {
   return {
     ...DEFAULT_SETTINGS,
     ...raw,
-    claudeTurnLimit: Number(raw.claudeTurnLimit ?? DEFAULT_SETTINGS.claudeTurnLimit),
-    claudeWeeklyLimit: Number(raw.claudeWeeklyLimit ?? DEFAULT_SETTINGS.claudeWeeklyLimit),
+    claudeSessionTokenLimit: Number(
+      raw.claudeSessionTokenLimit ?? DEFAULT_SETTINGS.claudeSessionTokenLimit
+    ),
+    claudeWeeklyTokenLimit: Number(
+      raw.claudeWeeklyTokenLimit ?? DEFAULT_SETTINGS.claudeWeeklyTokenLimit
+    ),
     refreshInterval: Number(raw.refreshInterval ?? DEFAULT_SETTINGS.refreshInterval),
     displayWindow:
       raw.displayWindow === "weekly" ? "weekly" : "session",
